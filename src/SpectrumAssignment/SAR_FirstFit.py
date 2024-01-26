@@ -1,5 +1,22 @@
 import numpy as np
 
+# def find_slots(routes: list, demands: int):
+#     number_of_slots = routes[0]._number_of_slots
+
+#     for slot in range(number_of_slots - demands):
+#         for route in routes:
+#             uplinks = route.get_uplinks()
+
+#             # Constroi o vetor de disponibilidade de slots para o uplink
+#             availability_vector_uplink = np.any(uplinks, axis=0)
+
+#             if not np.any(availability_vector_uplink[slot : slot + demands]):
+#                 return route, list(range(slot, slot + demands))
+    
+#     return None, []
+
+
+
 def find_slots(routes: list, demands: int) -> np.array:
     """ Encontra os slots disponíveis para alocar a demanda usando o método SAR. O método SAR aloca a demanda na rota que possua slots disponíveis no menor índice possível seguindo a ordem em que as rotas aparecem na lista de rotas.
     

@@ -6,6 +6,11 @@ __pycache__/
 # vscode
 .vscode/
 
+# Ignore all folders inside src-java/data
+src-java/data/**/*
+
+*.pkl
+
 # C extensions
 *.so
 

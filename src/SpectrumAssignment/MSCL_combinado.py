@@ -1,6 +1,7 @@
 
 
 import numpy as np
+from typing import List, Tuple
 from Enviroment.Settings import NUMBER_OF_SLOTS, DEMANDS_CLASS, CLASS_TAG_RSA_FF, CLASS_TAG_MSCL, CLASS_TAG_LF   
 from Enviroment.route import Route
 
@@ -29,9 +30,12 @@ def find_capacity_loss(route: Route, demands: int) -> (float, list[int]):
     main_route_links: list = route.get_uplinks()
 
     # Constroi o vetor de disponibilidade de slots para o uplink
-    main_route_availability_vector = main_route_links[0]
-    for link in range(1, len(main_route_links)):
-        main_route_availability_vector = np.logical_or(main_route_availability_vector, main_route_links[link])
+    # main_route_availability_vector = main_route_links[0]
+    # for link in range(1, len(main_route_links)):
+    #     main_route_availability_vector = np.logical_or(main_route_availability_vector, main_route_links[link])
+
+    main_route_availability_vector = np.sum(main_route_links, axis=0, dtype=bool)
+
     
     # Encontra todas as lacunas na rota principal
     all_apertures_in_main_route: list[(int, int)] = get_all_apertures(main_route_availability_vector)
@@ -160,64 +164,72 @@ def find_capacity_loss(route: Route, demands: int) -> (float, list[int]):
     return best_capacity_loss, slots
 
 
-def find_capacity(route: Route, apertures_main_route: list[(int, int)]) -> float:
-
-    # Na rota principal
+def find_capacity(route: Route, apertures_main_route: list[tuple[int, int]]) -> float:
     capacity_before: float = get_capacity_form(apertures_main_route)
 
-    # Nas rotas alternativas
-    alternative_routes: list[Route] = route.iRoutes
-    iRoute: Route
-    for iRoute in alternative_routes:
-        
-        # Encontra o vetor de disponibilidade de slots para a rota iRoute
-        iRoute_links: list = iRoute.get_uplinks()
-
-        iRoute_availability_vector = iRoute_links[0]
-        for link in range(1, len(iRoute_links)):
-            iRoute_availability_vector = np.logical_or(iRoute_availability_vector, iRoute_links[link])
-
-        all_apertures_in_iRoute: list[(int, int)] = get_all_apertures(iRoute_availability_vector)
-
-        capacity_before += get_capacity_form(all_apertures_in_iRoute)
+    for iRoute in route.iRoutes:
+        iRoute_availability_vector = np.sum(iRoute.get_uplinks(), axis=0, dtype=bool)
+        capacity_before += get_capacity_form(get_all_apertures(iRoute_availability_vector))
 
     return capacity_before
 
 
-def get_capacity_form(apetures: list[(int, int)]) -> float:
+
+# def find_capacity(route: Route, apertures_main_route: list[(int, int)]) -> float:
+
+#     # Na rota principal
+#     capacity_before: float = get_capacity_form(apertures_main_route)
+
+#     # Nas rotas alternativas
+#     alternative_routes: list[Route] = route.iRoutes
+#     iRoute: Route
+#     for iRoute in alternative_routes:
+        
+#         # Encontra o vetor de disponibilidade de slots para a rota iRoute
+#         iRoute_links: list = iRoute.get_uplinks()
+
+#         # iRoute_availability_vector = iRoute_links[0]
+#         # for link in range(1, len(iRoute_links)):
+#         #     iRoute_availability_vector = np.logical_or(iRoute_availability_vector, iRoute_links[link])
+
+#         iRoute_availability_vector = np.sum(iRoute_links, axis=0, dtype=bool)
+
+#         all_apertures_in_iRoute: list[(int, int)] = get_all_apertures(iRoute_availability_vector)
+
+
+#         capacity_before += get_capacity_form(all_apertures_in_iRoute)
+
+#     return capacity_before
+
+def get_capacity_form(apertures: List[Tuple[int, int]]) -> float:
     capacity: float = 0
-    apeture: (int, int)
-    for apeture in apetures:
-        apeture_size: int = apeture[1]
-        possible_demand: int
-        for possible_demand in DEMANDS_CLASS:
-            if possible_demand > apeture_size:
+
+    for _, size in apertures:
+        for demand in DEMANDS_CLASS:
+            if demand > size:
                 break
             # Equação do número de formas: (l - n + 1)
-            capacity += (apeture_size - possible_demand + 1)
+            capacity += (size - demand + 1)
 
     return capacity
 
 
-def get_all_apertures(availability_vector: np.array) -> list[(int, int)]:
-    all_apertures: list[(int, int)] = []
-    start_slot: int = 0
+
+def get_all_apertures(availability_vector: np.array) -> List[Tuple[int, int]]:
+
+    all_apertures: List[Tuple[int, int]] = []
     size: int = 0
 
-    # Percorre todo o espectro
-    while start_slot < NUMBER_OF_SLOTS:
-
-        # Se o slot estiver disponível
-        if availability_vector[start_slot] == False:
+    for start_slot, is_available in enumerate(availability_vector):
+        if not is_available:
             size += 1
-            start_slot += 1
-        else:
-            if size > 0:
-                all_apertures.append((start_slot - size, size))
+        elif size > 0:
+            all_apertures.append((start_slot - size, size))
             size = 0
-            start_slot += 1
 
-    if start_slot == NUMBER_OF_SLOTS and size > 0:
-        all_apertures.append((start_slot - size, size))    
-    
+    # Adiciona a última apertura, se houver, ao final do loop
+    if size > 0:
+        all_apertures.append((start_slot - size + 1, size))
+
     return all_apertures
+
