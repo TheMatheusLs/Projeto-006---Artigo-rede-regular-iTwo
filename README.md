@@ -5,6 +5,7 @@
 - Crie um ambiente virtual executando ```python3 -m venv venv``` e ative-o executando `source venv/bin/activate`
 - Instale as dependências executando `pip install -r requirements.txt`
 
+
 ## Significado das pastas
 - `data`: contém os arquivos de entrada e saída do simulador
 - `src`: contém o código fonte do simulador em Python

@@ -7,7 +7,7 @@ MAX_REQS = 100_000
 
 # Duração média das chamadas (em Erlangs)
 MEAN_CALL_DURATION = 1
-NUMBER_OF_SLOTS = 240
+NUMBER_OF_SLOTS = 128
 
 CLASS_TAG_RSA_FF = 0
 CLASS_TAG_MSCL = 1
