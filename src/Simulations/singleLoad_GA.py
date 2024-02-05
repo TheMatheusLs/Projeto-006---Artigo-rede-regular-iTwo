@@ -33,9 +33,10 @@ def single_load_GA(load: float, k_routes: int, number_of_slots: int, chromossome
 
         action = chromossome[state[1] + state[0] * 14]
 
-        _, reward, _, _, _ = env.step(action)
+        state, reward, _, _, info = env.step(action)
 
-        if reward != 1:
+        if info["is_blocked"]:
             blocking += 1
+
 
     return blocking / MAX_REQS, time.time() - start_time

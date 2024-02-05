@@ -28,4 +28,3 @@ print(f"Simulation Time: {simulation_time}")
 # print("** MSCL Combinado **")
 # print(f"Blocking Probability: {blocking_probabilitie:e}")
 # print(f"Simulation Time: {simulation_time}")
-

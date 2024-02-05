@@ -111,11 +111,11 @@ public class nn {
 
     public static void main(String[] args) {
         // Exemplo de uso da rede neural
-        int inputSize = 20;
-        int hidden1Size = 2000;
-        int hidden2Size = 500;
-        int hidden3Size = 100;
-        int outputSize = 3;
+        int inputSize = 323;
+        int hidden1Size = 646;
+        int hidden2Size = 230;
+        int hidden3Size = 115;
+        int outputSize = 5;
 
         nn neuralNetwork = new nn(inputSize, hidden1Size, hidden2Size, hidden3Size, outputSize);
 

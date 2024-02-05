@@ -73,8 +73,21 @@ class Enviroment(gym.Env):
 
         self._demands_class = DEMANDS_CLASS
 
+
+        # Cria um mapa de codificação para os estados de origem e destino em one hot encoding
+        self._source_destination_map = np.eye(self._number_of_nodes)
+
+        self.demand_class_map = np.eye(len(self._demands_class))
+
+        self._reward_by_step = []
+        self._reward_episode = None
+
+        # ? Espaço reservado para o as configurações do ambiente em Gym
+
         # Define o espaço de ações para a saída do algoritmo. Como nosso estado de ação é 0 (RSA) e 1 (SAR). Usamos o Discrete(2) para definir o espaço de ações.
         self.action_space = gym.spaces.Discrete(2)
+
+        # Define o espaço de observação para a entrada do algoritmo. O espaço de observação depende do tipo de estado escolhido para o ambiente.
 
         if self._state_type == 'one-hot':
             self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2, seed=42)
@@ -103,14 +116,11 @@ class Enviroment(gym.Env):
             # ? Usando os valores não normalizados, usamos:
             #self.observation_space = gym.spaces.Discrete(self._number_of_nodes * 2 + 9, seed=42)
 
-
-        # Cria um mapa de codificação para os estados de origem e destino em one hot encoding
-        self._source_destination_map = np.eye(self._number_of_nodes)
-
-        self.demand_class_map = np.eye(len(self._demands_class))
-
-        self._reward_by_step = []
-        self._reward_episode = None
+        elif self._state_type == 'dict':
+            self.observation_space = gym.spaces.Dict({
+                'source': gym.spaces.Discrete(self._number_of_nodes),
+                'destination': gym.spaces.Discrete(self._number_of_nodes),
+            })
 
     def route_by_path(self, path, id_route):
 
@@ -426,13 +436,13 @@ class Enviroment(gym.Env):
 
         self._last_request += 1
 
-        reward_step = +1 if self._isAvailableSlots else -1000
+        reward_step = +1 if self._isAvailableSlots else -100
 
         #reward_step =1 if action == round(np.random.random()) else -1
 
         self._reward_episode += reward_step
 
-        return self.get_observation(),  reward_step, False, True if self._last_request >= 60000 else False, {
+        return self.get_observation(),  reward_step, False, True if self._last_request >= 80000 else False, {
             'total_number_of_blocks': self._total_number_of_blocks,
             'simulation_time': self._simulation_time,
             'is_blocked': not self._isAvailableSlots,

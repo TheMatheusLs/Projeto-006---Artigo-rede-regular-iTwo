@@ -62,3 +62,5 @@ class Route:
     def __str__(self) -> str:
         return f"Route {self._route_index}: {self._path_node}"
     
+    def __repr__(self) -> str:
+        return f"Route {self._route_index}: {self._path_node}"

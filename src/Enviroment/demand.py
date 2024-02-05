@@ -22,3 +22,6 @@ class Demand:
 
         self.arrival_time = simulation_time
         self.departure_time = departure_time
+
+    def __repr__(self) -> str:
+        return f"Demand {self.demand_ID} - Class {self.demand_class} - Route {self.route._route_index} - Arrival {self.arrival_time} - Departure {self.departure_time}"

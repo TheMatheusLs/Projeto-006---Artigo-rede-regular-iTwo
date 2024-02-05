@@ -22,16 +22,16 @@ def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     """
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="multi_metrics")
+    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="one-hot")
 
     # Cria o modelo
     model = DQN('MlpPolicy', env, verbose=2,
                 seed=42,
                 learning_rate=0.00005,
-                batch_size=2048,
+                batch_size=4096,
                 buffer_size=100000,
                 learning_starts=10,
-                train_freq=(2, "step"),
+                train_freq=(20, "step"),
                 gradient_steps=10,
                 target_update_interval=5,
                 exploration_fraction=0.98,
@@ -71,7 +71,7 @@ def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
         alg_heuristic = model.predict(state)[0]
         actions.append(alg_heuristic)
 
-        _, reward, _, _, info = env.step(alg_heuristic)
+        state, reward, _, _, info = env.step(alg_heuristic)
 
         if info["is_blocked"]:
             blocking += 1
@@ -96,13 +96,13 @@ def train_A2C(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     """
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="multi_metrics")
+    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="int")
 
     # Cria o modelo
     model = A2C('MlpPolicy', env, verbose=2, tensorboard_log="./logs/")
 
     # Treina o modelo
-    model.learn(total_timesteps=2_000_000, progress_bar=True)
+    model.learn(total_timesteps=1_000_000, progress_bar=True)
 
     # Salva o modelo
     model.save("A2C_RSA_SAR")
@@ -128,7 +128,7 @@ def train_A2C(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
 
         alg_heuristic = model.predict(state)[0]
 
-        _, reward, _, _, info = env.step(alg_heuristic)
+        state, reward, _, _, info = env.step(alg_heuristic)
 
         if info["is_blocked"]:
             blocking += 1
