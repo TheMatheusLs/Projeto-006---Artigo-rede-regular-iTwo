@@ -34,7 +34,7 @@ class Enviroment(gym.Env):
                 network_load: Carga da rede em Erlangs.
                 k_routes: Número de rotas alternativas para cada par origem-destino.
                 number_of_slots: Número de slots por enlace.
-                state_type: Tipo de estado do ambiente. Pode ser 'int', 'one-hot' ou 'multi_metrics'.
+                state_type: Tipo de estado do ambiente. Pode ser 'int', 'one-hot', 'multi_metrics' ou 'RSA-SAR'.
         """
 
         self._number_of_slots = number_of_slots
@@ -121,6 +121,34 @@ class Enviroment(gym.Env):
                 'source': gym.spaces.Discrete(self._number_of_nodes),
                 'destination': gym.spaces.Discrete(self._number_of_nodes),
             })
+        elif self._state_type == 'RSA-SAR':
+            
+            # # Métricas de observação do ambiente 'RSA' e 'SAR'
+            # src = self.source # Valor entre 0 e 14 (NSFNet) representando a origem
+            # dst = self.destination # Valor entre 0 e 14 (NSFNet) representando o destino
+            # demand = self.demand_class # Valor entre 0 e 2 representando o índice da demanda de slots (2, 3, 6)
+            # index_RSA = -1 # Valor entre 0 e 128 representando o índice do slot escolhido pelo algoritmo RSA
+            # ocup_RSA = -1 # Valor entre 0 e 128 representando a ocupação do vetor de disponibilidade da rota escolhida pelo algoritmo RSA
+            # hops_RSA = -1 # Valor entre 0 e 7 representando o número de saltos da rota escolhida pelo algoritmo RSA
+            # index_SAR = -1 # Valor entre 0 e 128 representando o índice do slot escolhido pelo algoritmo SAR
+            # ocup_SAR = -1 # Valor entre 0 e 128 representando a ocupação do vetor de disponibilidade da rota escolhida pelo algoritmo SAR
+            # hops_SAR = -1 # Valor entre 0 e 7 representando o número de saltos da rota escolhida pelo algoritmo SAR
+
+            self.observation_space = gym.spaces.Box(low=np.array([0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                               high=np.array([13, 13, 2, 127, 127, 6, 127, 127, 6]),
+                               dtype=np.int32, seed=42)
+            # self.observation_space = gym.spaces.Dict({
+            #     'src': gym.spaces.Discrete(self._number_of_nodes),
+            #     'dst': gym.spaces.Discrete(self._number_of_nodes),
+            #     'demand': gym.spaces.Discrete(3),
+            #     'index_RSA': gym.spaces.Discrete(NUMBER_OF_SLOTS),
+            #     'ocup_RSA': gym.spaces.Discrete(NUMBER_OF_SLOTS),
+            #     'hops_RSA': gym.spaces.Discrete(10),
+            #     'index_SAR': gym.spaces.Discrete(NUMBER_OF_SLOTS),
+            #     'ocup_SAR': gym.spaces.Discrete(NUMBER_OF_SLOTS),
+            #     'hops_SAR': gym.spaces.Discrete(10),
+            # })
+            # self.observation_space.n =  
 
     def route_by_path(self, path, id_route):
 
@@ -298,6 +326,56 @@ class Enviroment(gym.Env):
                             self._source_destination_map[self.destination]])
         elif self._state_type == 'multi_metrics':
             return self.get_multi_metrics_observation()
+        elif self._state_type == 'RSA-SAR':
+            return self.get_RSA_SAR_observation()
+
+    def get_RSA_SAR_observation(self):
+
+        routes_by_OD = self.allRoutes[self.destination + self.source * self._number_of_nodes]
+
+        # Métricas de observação do ambiente 'RSA' e 'SAR'
+        src = self.source # Valor entre 0 e 14 (NSFNet) representando a origem
+        dst = self.destination # Valor entre 0 e 14 (NSFNet) representando o destino
+        demand = self.demand_class # Valor entre 0 e 2 representando o índice da demanda de slots (2, 3, 6)
+        index_RSA = -1 # Valor entre 0 e 128 representando o índice do slot escolhido pelo algoritmo RSA
+        ocup_RSA = -1 # Valor entre 0 e 128 representando a ocupação do vetor de disponibilidade da rota escolhida pelo algoritmo RSA
+        hops_RSA = -1 # Valor entre 0 e 7 representando o número de saltos da rota escolhida pelo algoritmo RSA
+        index_SAR = -1 # Valor entre 0 e 128 representando o índice do slot escolhido pelo algoritmo SAR
+        ocup_SAR = -1 # Valor entre 0 e 128 representando a ocupação do vetor de disponibilidade da rota escolhida pelo algoritmo SAR
+        hops_SAR = -1 # Valor entre 0 e 7 representando o número de saltos da rota escolhida pelo algoritmo SAR
+
+        # Executa o RSA para a coleta das informações
+        route_RSA, slots_RSA = RSA_FirstFit.find_slots(self.allRoutes[dst + src * self._number_of_nodes], demand)
+
+        if route_RSA is not None:
+            route_SAR, slots_SAR = SAR_FistFit.find_slots(self.allRoutes[dst + src * self._number_of_nodes], demand)
+
+            hops_RSA = len(route_RSA._path_uplink)
+            index_RSA = slots_RSA[0]
+            ocup_RSA = np.array(np.sum(route_SAR.get_uplinks(), axis=0), dtype=np.bool_).sum()
+
+            hops_SAR = len(route_SAR._path_uplink)
+            index_SAR = slots_SAR[0]
+            ocup_SAR = np.array(np.sum(route_SAR.get_uplinks(), axis=0), dtype=np.bool_).sum()
+
+
+            
+
+
+        # return {
+        #         'src': src,
+        #         'dst': dst,
+        #         'demand': demand,
+        #         'index_RSA': index_RSA,
+        #         'ocup_RSA': ocup_RSA,
+        #         'hops_RSA': hops_RSA,
+        #         'index_SAR':  index_SAR,
+        #         'ocup_SAR':         ocup_SAR,
+        #         'hops_SAR':       hops_SAR,
+        #     }
+
+
+        return np.array([src, dst, demand, index_RSA, ocup_RSA, hops_RSA, index_SAR, ocup_SAR, hops_SAR], dtype=np.int32)
 
 
     def get_multi_metrics_observation(self):
@@ -374,6 +452,9 @@ class Enviroment(gym.Env):
 
         source = self.source
         destination = self.destination
+        if source == destination:
+            raise ValueError('Source and destination must be different.')
+
 
         self._isAvailableSlots = False
 
@@ -442,7 +523,7 @@ class Enviroment(gym.Env):
 
         self._reward_episode += reward_step
 
-        return self.get_observation(),  reward_step, False, True if self._last_request >= 80000 else False, {
+        return self.get_observation(),  reward_step, not self._isAvailableSlots, True if self._last_request >= 100000 else False, {
             'total_number_of_blocks': self._total_number_of_blocks,
             'simulation_time': self._simulation_time,
             'is_blocked': not self._isAvailableSlots,

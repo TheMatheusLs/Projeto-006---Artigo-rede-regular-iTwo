@@ -12,6 +12,7 @@ src-java/data/**/*
 *.pkl
 *.npys
 *.pth
+*.npy
 
 logs/
 *.zip

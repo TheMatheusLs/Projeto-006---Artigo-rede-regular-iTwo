@@ -29,11 +29,14 @@ def single_load(load: float, k_routes: int, number_of_slots: int, alg_heuristic:
     start_time = time.time()
 
     blocking = 0
-    for _ in range(MAX_REQS):
+    for reqs in range(MAX_REQS):
 
-        _, reward, _, _, info = env.step(alg_heuristic)
+        _, reward, done, _, info = env.step(alg_heuristic)
 
         if info["is_blocked"]:
             blocking += 1
 
-    return blocking / MAX_REQS, time.time() - start_time
+        if done:
+            break
+
+    return blocking / reqs, time.time() - start_time, reqs
