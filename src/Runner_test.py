@@ -1,8 +1,13 @@
 from Enviroment.Manager import Enviroment
 from Enviroment.Settings import NUMBER_OF_SLOTS
 
+env_type = {
+    "Observation": "OD",
+    "Action": "RSA-SAR",
+    "Reward": "RL-defaut",
+}
 
-env = Enviroment(network_load = 250, k_routes = 3, number_of_slots = NUMBER_OF_SLOTS, state_type="dict")
+env = Enviroment(network_load = 250, k_routes = 3, number_of_slots = NUMBER_OF_SLOTS, enviroment_type=env_type)
 
 # Espaço de ações
 print(f"Espaço de ações: {env.action_space}")

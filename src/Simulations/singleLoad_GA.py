@@ -18,9 +18,17 @@ def single_load_GA(load: float, k_routes: int, number_of_slots: int, chromossome
         - (blocking_probability, simulation_time): A tuple containing the blocking probability and the simulation time.
     """
 
+    # Avaliando a PB do modelo treinado
+    enviroment_type_test = {
+        "Observation": "OD-int",
+        "Action": "RSA-SAR",
+        "Reward": "RL-defaut",
+        "StopCond": "MaxReq",
+        "StartCond": "Empty"
+    }
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="int")
+    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, enviroment_type=enviroment_type_test)
 
     # Reseta o ambiente
     state, _ = env.reset(seed)

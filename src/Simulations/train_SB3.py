@@ -1,15 +1,19 @@
-
 import time
 
 from Enviroment.Manager import Enviroment
+
 from Enviroment.Settings import *
 import numpy as np
 
 from stable_baselines3 import DQN, A2C, PPO
-    
-def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) -> (float, float):
+from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnNoModelImprovement
+
+
+def train_DQN(
+    load: float, k_routes: int, number_of_slots: int, seed: int = 42
+) -> (float, float):
     """
-    Simulates a single load in the network. 
+    Simulates a single load in the network.
 
     Parameters:
         - load: Network load in Erlangs.
@@ -22,22 +26,30 @@ def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     """
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="RSA-SAR")
+    env = Enviroment(
+        network_load=load,
+        k_routes=k_routes,
+        number_of_slots=number_of_slots,
+        enviroment_type="RSA-SAR",
+    )
 
     # Cria o modelo
-    model = DQN('MlpPolicy', env, verbose=2,
-                seed=42,
-                learning_rate=0.0005,
-                batch_size=4096,
-                buffer_size=100000,
-                learning_starts=10,
-                train_freq=(50, "step"),
-                gradient_steps=10,
-                target_update_interval=5,
-                exploration_fraction=0.98,
-                exploration_initial_eps=1.0,
-                exploration_final_eps=0.002,
-                tensorboard_log="./logs/",
+    model = DQN(
+        "MlpPolicy",
+        env,
+        verbose=2,
+        seed=42,
+        learning_rate=0.0005,
+        batch_size=4096,
+        buffer_size=100000,
+        learning_starts=10,
+        train_freq=(50, "step"),
+        gradient_steps=10,
+        target_update_interval=5,
+        exploration_fraction=0.98,
+        exploration_initial_eps=1.0,
+        exploration_final_eps=0.002,
+        tensorboard_log="./logs/",
     )
 
     # # Treina o modelo
@@ -76,7 +88,7 @@ def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
         if info["is_blocked"]:
             blocking += 1
 
-        if done: 
+        if done:
             break
 
     np.save("actions.npy", actions)
@@ -84,9 +96,11 @@ def train_DQN(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     return blocking / MAX_REQS, time.time() - start_time, reqs
 
 
-def train_A2C(load: float, k_routes: int, number_of_slots: int, seed: int = 42) -> (float, float):
+def train_A2C(
+    load: float, k_routes: int, number_of_slots: int, seed: int = 42
+) -> (float, float):
     """
-    Simulates a single load in the network. 
+    Simulates a single load in the network.
 
     Parameters:
         - load: Network load in Erlangs.
@@ -99,23 +113,27 @@ def train_A2C(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     """
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="RSA-SAR")
+    env = Enviroment(
+        network_load=load,
+        k_routes=k_routes,
+        number_of_slots=number_of_slots,
+        enviroment_type="RSA-SAR",
+    )
 
     # Cria o modelo
     model = A2C(
-            policy="MlpPolicy",
-            env=env,
-            learning_rate=0.0007,
-            n_steps=5,
-            gamma=0.99,
-            ent_coef=0.01,
-            vf_coef=0.5,
-            max_grad_norm=0.5,
-            seed=42  # Escolha uma semente adequada para reprodução
-    ) # By chatGPT
+        policy="MlpPolicy",
+        env=env,
+        learning_rate=0.0007,
+        n_steps=5,
+        gamma=0.99,
+        ent_coef=0.01,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+        seed=42,  # Escolha uma semente adequada para reprodução
+    )  # By chatGPT
 
     # model = A2C(policy="MlpPolicy",env=env, ent_coef=0.01, gamma=0.99, learning_rate=0.0005, n_steps=2048, seed=42, verbose=1)
-    
 
     # Treina o modelo
     model.learn(total_timesteps=1_000_000, progress_bar=True)
@@ -155,9 +173,11 @@ def train_A2C(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     return blocking / reqs, time.time() - start_time, reqs
 
 
-def train_HER(load: float, k_routes: int, number_of_slots: int, seed: int = 42) -> (float, float):
+def train_HER(
+    load: float, k_routes: int, number_of_slots: int, seed: int = 42
+) -> (float, float):
     """
-    Simulates a single load in the network. 
+    Simulates a single load in the network.
 
     Parameters:
         - load: Network load in Erlangs.
@@ -174,9 +194,14 @@ def train_HER(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     from stable_baselines3.her.goal_selection_strategy import GoalSelectionStrategy
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="RSA-SAR")
+    env = Enviroment(
+        network_load=load,
+        k_routes=k_routes,
+        number_of_slots=number_of_slots,
+        enviroment_type="RSA-SAR",
+    )
 
-    model_class = DQN 
+    model_class = DQN
 
     goal_selection_strategy = "future"
 
@@ -197,9 +222,11 @@ def train_HER(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     model.learn(total_timesteps=100_000, progress_bar=True)
 
 
-def train_PPO(load: float, k_routes: int, number_of_slots: int, seed: int = 42) -> (float, float):
+def train_PPO(
+    load: float, k_routes: int, number_of_slots: int, seed: int = 42
+) -> (float, float):
     """
-    Simulates a single load in the network. 
+    Simulates a single load in the network.
 
     Parameters:
         - load: Network load in Erlangs.
@@ -212,62 +239,97 @@ def train_PPO(load: float, k_routes: int, number_of_slots: int, seed: int = 42) 
     """
 
     # Cria o ambiente de simulação
-    env = Enviroment(network_load = load, k_routes = k_routes, number_of_slots = number_of_slots, state_type="RSA-SAR")
+    env = Enviroment(
+        network_load=load,
+        k_routes=k_routes,
+        number_of_slots=number_of_slots,
+        enviroment_type="one-hot",
+    )
 
-    # Cria o modelo
     # model = PPO(
     #     "MlpPolicy",
     #     env,
     #     verbose=1,
+    #     n_steps=16,
+    #     learning_rate=0.00001,
+    #     batch_size=256,
+    #     ent_coef=0.01
     # )
-    model = PPO(
-        "MlpPolicy",
-        env,
-        verbose=1,
-        n_steps=16,
-        learning_rate=0.00001,
-        batch_size=4048,
-        ent_coef=0.01
-    )
+    LOG_PATH = "./logs/PPO-RSA_SAR-v0/"
 
-    # n_step
-    # Lr
-    # ent-coef
+#     # Use deterministic actions for evaluation
+#     eval_callback = EvalCallback(env, best_model_save_path=LOG_PATH,
+#                                 log_path=LOG_PATH, eval_freq=2000,
+#                                 deterministic=True, render=False, verbose=1)
+    
 
+#     #here goes the arguments of the policy network to be used
+#     policy_args = dict(net_arch=[1024, 512, 128, 64])  # we use the elu activation function
 
-    # Treina o modelo
-    model.learn(total_timesteps=1_000_000, progress_bar=True)
+#     model = PPO(
+#         "MlpPolicy",
+#         env,
+#         #verbose=0,
+#         policy_kwargs=policy_args,
+# #gamma=0.95,
+#         learning_rate=5e-5,
+#         #batch_size=1024,
+#         #n_steps=1024,
+#         tensorboard_log=LOG_PATH,
+#         #ent_coef=10e-4,
+#     )
 
-    # Salva o modelo
-    model.save("PPO_RSA_SAR")
+#     # # n_step
+#     # # Lr
+#     # # ent-coef
 
-    # # Gráica a recompensa
-    env.plot_reward()
+#     # Treina o modelo
+#     model.learn(total_timesteps=100_000, progress_bar=True,callback=eval_callback) 
 
-    del model
+    # # Salva o modelo
+    # model.save("PPO_RSA_SAR")
 
-    model = PPO.load("PPO_RSA_SAR")
+    # # # Gráica a recompensa
+    # env.plot_reward()
+
+    # del model
+
+    model = PPO.load(LOG_PATH + "best_model.zip")
 
     ## Retorna a PB para o modelo treinado
     print("Testing the model...")
 
-    # Reseta o ambiente
-    state, _ = env.reset(seed)
+    np.random.seed(seed)
+    seeds = np.random.randint(0, 100_000, 50, dtype=int)
+    pbs = np.zeros(50)
+    reward = np.zeros(50)
 
     # Inicia a contagem de tempo
     start_time = time.time()
 
-    blocking = 0
-    for reqs in range(MAX_REQS):
+    for i, seed in enumerate(seeds):
 
-        alg_heuristic = model.predict(state)[0]
+        print(">")
 
-        state, reward, done, _, info = env.step(alg_heuristic)
+        # Reseta o ambiente
+        state, info = env.reset(int(seed))
 
-        if info["is_blocked"]:
-            blocking += 1
+        for reqs in range(MAX_REQS):
 
-        if done:
-            break
+            alg_heuristic = model.predict(observation=state)[0]
 
-    return blocking / reqs, time.time() - start_time, reqs
+            state, _, done, trunk, info = env.step(alg_heuristic)
+
+            if (done or trunk) and reward[i] == 0:
+                reward[i] = env._reward_episode
+
+        pbs[i] = info['total_number_of_blocks'] / reqs
+
+    print(f"\nBlocking Probability: {np.mean(pbs)} | Min: {np.min(pbs)} | Max: {np.max(pbs)} | +- {np.std(pbs)}")
+    print(f"Reward: {np.mean(reward)} | Min: {np.min(reward)} | Max: {np.max(reward)} | +- {np.std(reward)}")
+
+    return np.mean(pbs), time.time() - start_time, np.mean(reward)
+
+
+
+
