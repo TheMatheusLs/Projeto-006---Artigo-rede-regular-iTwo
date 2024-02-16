@@ -27,8 +27,5 @@ RSA_CODE = 0
 SAR_CODE = 1
 MSCL_CODE = 2
 
-# Carga da rede (em Erlangs)
-LOAD = 300
-
 # Número de rotas por par OD
 K_ROUTES = 3

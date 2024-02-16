@@ -132,6 +132,10 @@ class Enviroment(gym.Env):
             #     ,),
             #     dtype=np.uint8, seed=42)
             self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2 + len(self._demands_class) + number_of_links * self._number_of_slots)
+        elif self._enviroment_type["Observation"] == "ODD-nForms":
+            # Par origem e destino, demanda e o número formas possíveis de alocar uma demanda de também 'n' nas 'K' rotas
+            self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2 + len(self._demands_class) + self._k_routes)
+            
         else:
             raise ValueError("Tipo de observação inválido. Escolha entre 'OD', 'ODD-one-hot', 'availability-vector' ou 'all-network'.")
         
@@ -291,6 +295,8 @@ class Enviroment(gym.Env):
         # Limpa
         self._reward_episode = 0
         self._start_blocking = 0
+
+        self.SAR_calls = 0
     
         return self.get_observation(), {}
 
@@ -383,7 +389,6 @@ class Enviroment(gym.Env):
                 Uma tupla (observation, reward, done, truncation, info).
         
         """
-
         source = self.source
         destination = self.destination
         if source == destination:
@@ -397,6 +402,7 @@ class Enviroment(gym.Env):
             if action == 0: # RSA
                 route, slots = RSA_FirstFit.find_slots(self.allRoutes[destination + source * self._number_of_nodes], self.demand_class)
             elif action == 1: # SAR
+                self.SAR_calls += 1
                 route, slots = SAR_FistFit.find_slots(self.allRoutes[destination + source * self._number_of_nodes], self.demand_class)
             else:
                 raise ValueError('Invalid action.')
@@ -443,10 +449,10 @@ class Enviroment(gym.Env):
 
         #! Condição de parada
         
-        isDone = False
+        self.isDone = False
         isTruncated = False
         if self._enviroment_type["StopCond"] == "Not":
-            isDone = False
+            self.isDone = False
         elif self._enviroment_type["StopCond"] == "MaxReq":
             if self._last_request == MAX_REQS:
                 isTruncated = True
@@ -458,7 +464,7 @@ class Enviroment(gym.Env):
                 isTruncated = True
         elif self._enviroment_type["StopCond"] == "First":
             if self._isAvailableSlots:
-                isDone = True
+                self.isDone = True
         else:
             raise ValueError("Tipo de condição de parada inválido. Escolha entre 'Not', 'MaxReq' ou '40kReqs'.")
 
@@ -472,8 +478,25 @@ class Enviroment(gym.Env):
             'last_request': self._last_request,
         }
 
-        return self.get_observation(),  reward_step, isDone, isTruncated, info
+        return self.get_observation(),  reward_step, self.isDone, isTruncated, info
 
+
+    def get_custom_info(self):
+
+        if self._last_request == 0:
+            return {
+                "blocking_probability": 0,
+                "total_number_of_blocks": 0,
+                "total_requests": 0,
+                "reward_episode": 0
+            }
+
+        return {
+            "blocking_probability": self._total_number_of_blocks / self._last_request,
+            "total_number_of_blocks": self._total_number_of_blocks,
+            "total_requests": self._last_request,
+            "reward_episode": self._reward_episode
+        }
 
     def plot_reward(self):
         import matplotlib.pyplot as plt
