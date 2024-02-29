@@ -113,6 +113,9 @@ class Enviroment(gym.Env):
             # Define o espaço de observação para a entrada do algoritmo. O espaço 'OD-one-hot' é um espaço de observação que representa o par de origem, destino e demanda em one-hot encoding.
             #self.observation_space = gym.spaces.Box(low=0, high=1, shape=(self._number_of_nodes * 2 + len(self._demands_class),), dtype=np.uint8, seed=42)
             self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2 + len(self._demands_class))
+        elif self._enviroment_type["Observation"] == "ODD-one-hot+actions":
+            # Define o espaço de observação para a entrada do algoritmo. O espaço 'OD-one-hot' é um espaço de observação que representa o par de origem, destino e demanda em one-hot encoding. No final deve ser adicionado a quantidade de ações tomadas pelo algoritmo para o par OD, normalizado pelo total de chamadas.
+            self.observation_space = gym.spaces.Box(low=0, high=1, shape=(self._number_of_nodes * 2 + len(self._demands_class) + 2,), dtype=np.float32, seed=42)
         elif self._enviroment_type["Observation"] == "availability-vector":
             # self.observation_space = gym.spaces.Box(
             #     low=0, high=1, 
@@ -121,7 +124,11 @@ class Enviroment(gym.Env):
             #            self._k_routes * self._number_of_slots
             #     ,), 
             #     dtype=np.uint8, seed=42)
-            self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2 + len(self._demands_class) + self._k_routes * self._number_of_slots)
+            self.observation_space = gym.spaces.MultiBinary(
+                self._number_of_nodes * 2 + 
+                len(self._demands_class) + 
+                self._k_routes * self._number_of_slots
+            )
         elif self._enviroment_type["Observation"] == "all-network":
             number_of_links = self._network.get_num_of_links()
             # self.observation_space = gym.spaces.Box(
@@ -140,6 +147,9 @@ class Enviroment(gym.Env):
             raise ValueError("Tipo de observação inválido. Escolha entre 'OD', 'ODD-one-hot', 'availability-vector' ou 'all-network'.")
         
         self.collect_data(True)
+
+        self.matrix_OD_RSA = np.zeros((self._number_of_nodes, self._number_of_nodes))
+        self.matrix_OD_SAR = np.zeros((self._number_of_nodes, self._number_of_nodes))
 
     def route_by_path(self, path, id_route):
 
@@ -285,6 +295,9 @@ class Enviroment(gym.Env):
         # Limpa os slots alocados na matriz de links
         self._network.clean_links()
 
+        self.matrix_OD_RSA = np.zeros((self._number_of_nodes, self._number_of_nodes))
+        self.matrix_OD_SAR = np.zeros((self._number_of_nodes, self._number_of_nodes))
+
         if self._enviroment_type["StartCond"] == "5kReqs":
             # Executa 5 mil requisições para gerar um estado inicial usando o algoritmo RSA e SAR com o objetivo de preencher as rotas com demandas em igual proporção
             self.get_observation()
@@ -353,6 +366,14 @@ class Enviroment(gym.Env):
             return np.concatenate([self._source_destination_map[self.source],
                             self._source_destination_map[self.destination],
                             self.demand_class_map[self._demands_class.index(self.demand_class)]])
+        elif self._enviroment_type["Observation"] == "ODD-one-hot+actions":
+            # Retorna o espaço de observação para a entrada do algoritmo. O espaço 'OD-one-hot' é um espaço de observação que representa o par de origem, destino e demanda em one-hot encoding.
+            return np.concatenate([self._source_destination_map[self.source],
+                            self._source_destination_map[self.destination],
+                            self.demand_class_map[self._demands_class.index(self.demand_class)],
+                            [self.matrix_OD_RSA[self.source, self.destination] / 40_000],
+                            [self.matrix_OD_SAR[self.source, self.destination] / 40_000]]
+                            )
         elif self._enviroment_type["Observation"] == "availability-vector":
             
             routes_by_OD = self.allRoutes[self.destination + self.source * self._number_of_nodes]
@@ -401,9 +422,11 @@ class Enviroment(gym.Env):
             # Executa o First-Fit para o algoritmo RSA
             if action == 0: # RSA
                 route, slots = RSA_FirstFit.find_slots(self.allRoutes[destination + source * self._number_of_nodes], self.demand_class)
+                self.matrix_OD_RSA[source, destination] += 1
             elif action == 1: # SAR
                 self.SAR_calls += 1
                 route, slots = SAR_FistFit.find_slots(self.allRoutes[destination + source * self._number_of_nodes], self.demand_class)
+                self.matrix_OD_SAR[source, destination] += 1
             else:
                 raise ValueError('Invalid action.')
 
@@ -440,8 +463,34 @@ class Enviroment(gym.Env):
 
         if self._enviroment_type["Reward"] == "RL-defaut":
             reward_step = +1 if self._isAvailableSlots else -1
+        elif self._enviroment_type["Reward"] == "RL-10":
+            reward_step = +1 if self._isAvailableSlots else -10
         elif self._enviroment_type["Reward"] == "PB":
             reward_step = +1 - self._total_number_of_blocks / self._last_request
+        elif self._enviroment_type["Reward"] == "balance":
+            # O primeiro componente da recompensa é a diferença entre a probabilidade de bloqueio antes e depois da alocação da demanda. O segundo componente é o consumo de recurso extra para alocar a demanda, ou seja, a quantidade de recursos que seria alocado pela rota mais curta dividido pela quantidade de recursos alocados pela rota selecionada.
+
+            if self._last_request != 1:
+                PB_before = (self._total_number_of_blocks if self._isAvailableSlots else self._total_number_of_blocks - 1) / (self._last_request -1)
+                PB_after = self._total_number_of_blocks / self._last_request
+                pb_diff = (PB_before - PB_after)
+            else:
+                pb_diff = 0
+
+            if self._isAvailableSlots:
+                # Consumo de recurso extra  para alocar a demanda
+                min_hop = len(self.allRoutes[destination + source * self._number_of_nodes][0]._path_uplink)
+                selected_route = len(route._path_uplink)
+                max_hop = len(self.allRoutes[destination + source * self._number_of_nodes][-1]._path_uplink)
+
+                if max_hop != min_hop:
+                    resource = ((selected_route * self.demand_class) - (min_hop * self.demand_class)) / (max_hop * self.demand_class - min_hop * self.demand_class)
+                else:
+                    resource = 0
+            else:
+                resource = 10
+
+            reward_step = 1.5 + pb_diff * 10 - resource
         else:
             raise ValueError("Tipo de recompensa inválido. Escolha entre 'RL-defaut' ou 'PB'.")
 
@@ -513,10 +562,10 @@ class Enviroment(gym.Env):
 
         # Cria uma pasta para armazenar os dados do ambiente dentro da pasta 'logs'. A pasta deve ser criada com um nome único para cada execução do ambiente, exemplo: 'logs/{folder_name}_{qtd}'. Sendo qtd a quantidade de pasta com o mesmo nome.
         if create_folder:
-            folders_name = os.listdir(f'../logs/')
+            folders_name = os.listdir(f'D:\\98_phD_Files\\Projeto 006 - Artigo rede regular iTwo\\logs\\')
             qtd = len([name for name in folders_name if self._data_folder in name]) + 1
 
-            self.folder_name = f'../logs/{self._data_folder}_{str(qtd).zfill(3)}'
+            self.folder_name = f'D:\\98_phD_Files\\Projeto 006 - Artigo rede regular iTwo\\logs\\{self._data_folder}_{str(qtd).zfill(3)}'
 
             os.makedirs(self.folder_name, exist_ok=True)
 

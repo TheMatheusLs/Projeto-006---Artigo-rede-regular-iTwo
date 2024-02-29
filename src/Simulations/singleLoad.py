@@ -36,7 +36,7 @@ def single_load(load: float, k_routes: int, number_of_slots: int, alg_heuristic:
                 reward[i] = env._reward_episode
                 break
 
-        env.collect_data()
+        #env.collect_data()
 
         pbs[i] = info['total_number_of_blocks'] / reqs
 

@@ -9,7 +9,7 @@ IS_COST_TYPE = 'hops'
 DEMANDS_CLASS = [2, 3, 6]
 
 # Número de requisições
-MAX_REQS = 100_000
+MAX_REQS = 1_000_000
 
 # Duração média das chamadas (em Erlangs)
 MEAN_CALL_DURATION = 1

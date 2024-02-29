@@ -13,6 +13,9 @@ src-java/data/**/*
 *.npys
 *.pth
 *.npy
+*.db
+*.pickle
+*.csv
 
 logs/
 *.zip

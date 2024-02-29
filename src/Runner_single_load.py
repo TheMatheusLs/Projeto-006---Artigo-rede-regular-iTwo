@@ -1,19 +1,22 @@
 from Simulations.singleLoad import single_load
 from Simulations.singleLoad_GA import single_load_GA
+from Simulations.singleLoad_DNN_PSO import single_load_DNN_PSO
 from Enviroment.Settings import *
 import numpy as np
 
-env_type = {
-    "Observation": "OD",
+enviroment_type = {
+    "Observation": "ODD-one-hot+actions",
     "Action": "RSA-SAR",
-    "Reward": "RL-defaut",
-    "StopCond": "40kReqs"
+    "Reward": "RL-10",
+    "StopCond": "40kReqs",
+    "StartCond": "Empty"
 }
 
-pb_RSA, time_RSA, reward_RSA = single_load(LOAD, K_ROUTES, NUMBER_OF_SLOTS, RSA_CODE, 42, env_type, 3, "RSA")
+#pb_RSA, time_RSA, reward_RSA = single_load(300, 3, NUMBER_OF_SLOTS, RSA_CODE, 42, enviroment_type, 3, "RSA")
 
-pb_SAR, time_SAR, reward_SAR = single_load(LOAD, K_ROUTES, NUMBER_OF_SLOTS, SAR_CODE, 42, env_type, 3, "SAR")
+#pb_SAR, time_SAR, reward_SAR = single_load(300, 3, NUMBER_OF_SLOTS, SAR_CODE, 42, enviroment_type, 3, "SAR")
 
+pb_DNN_PSO, time_DNN_PSO, reward_DNN_PSO = single_load_DNN_PSO(300, 3, NUMBER_OF_SLOTS, None, 42, enviroment_type, 3, "DNN")
 
 # for i in range(50):
 #     # Simulando o algoritmo RSA para as diversas cargas da rede
