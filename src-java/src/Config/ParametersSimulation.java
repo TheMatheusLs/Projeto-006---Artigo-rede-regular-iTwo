@@ -23,13 +23,13 @@ public class ParametersSimulation{
     // Configura o número e as cargas para simulação
     final static double minLoadNetwork = 240; 
     final static double maxLoadNetwork = 300;
-    final static int numberOfPointsLoadNetwork = 1;
-    final static int numberOfSimulationsPerLoadNetwork = 1; 
+    final static int numberOfPointsLoadNetwork = 7;
+    final static int numberOfSimulationsPerLoadNetwork = 10; 
     
     // Seleciona a topologia da rede
     final static TopologyType topologyType = TopologyType.NSFNet;
-    final static int numberOfSlotsPerLink = 240;
-    final static long maxNumberOfRequisitions = (long) 50000;
+    final static int numberOfSlotsPerLink = 128;
+    final static long maxNumberOfRequisitions = (long) 1000000;
     final static int maxNumberOfBlockedRequests = 500;
     
     // Algoritmo de Roteamento
@@ -37,20 +37,20 @@ public class ParametersSimulation{
     * Se for escolhido o algoritmo YEN ou Dijkstra é necessário escolher o tipo de ordem RSA entre "Routing_SA" ou "SA_Routing". Modificar a variável "rsaOrderType". E o algoritmo de alocação do espectro deve ser o "First-Fit" 
     * Se for escolhido o algoritmo "MSCLSequencial" ou "MSCLCombinado" o algoritmo de alocação do espectro deve ser o "MSLC" e o tipo de ordem deve ser atribuido "None".
     */
-    final static RoutingAlgorithmType routingAlgorithmType = RoutingAlgorithmType.MSCLCombinado;
-    final static int kShortestRoutes = 4;
+    final static RoutingAlgorithmType routingAlgorithmType = RoutingAlgorithmType.YEN;
+    final static int kShortestRoutes = 3;
     final static KSortedRoutesByType kSortedRoutesByType = KSortedRoutesByType.None;
 
     
     // Algoritmo de alocação do espectro
-    final static SpectralAllocationAlgorithmType spectralAllocationAlgorithmType = SpectralAllocationAlgorithmType.MSCL;
+    final static SpectralAllocationAlgorithmType spectralAllocationAlgorithmType = SpectralAllocationAlgorithmType.FirstFit;
     /* Restrições:
      * O First Fit só pode ser usado quanto o algoritmo de roteamento for: YEN ou Djisktra
      * O MSCL só pode ser usado quanto o algoritmo de roteamento for: MSCL Sequencial ou MSCL Combinado
      */
     
     // Configurações Gerais
-    final static RSAOrderType rsaOrderType = RSAOrderType.None;
+    final static RSAOrderType rsaOrderType = RSAOrderType.SA_Routing;
     final static PhysicalLayerOption physicalLayerOption = PhysicalLayerOption.Disabled;
     final static int[] trafficOption = new int[]{100, 200, 400};
     final static LinkCostType linkCostType = LinkCostType.Hops;
@@ -71,7 +71,7 @@ public class ParametersSimulation{
     };
 
     // Pasta onde serão armazenadas os relatórios da simulação. Em caso da utilização no sistema linux é necessário aterar a classe CreateFolder.java
-    final static String pathToSaveResults = "D:\\98_phD_Files\\Projeto 006 - Artigo rede regular iTwo\\src-java\\data\\"; 
+    final static String pathToSaveResults = "D:\\98_phD_Files\\Simulator-RSA-SAR-RL-GA\\src-java\\data\\"; 
 
     
     public static double getMinLoadNetwork() {

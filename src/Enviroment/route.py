@@ -5,7 +5,7 @@ class Route:
     """ Classe que representa uma rota de um par de nós.
     """
 
-    def __init__(self, node_path: list[int], route_index: int, uplink_path: list[int], downlink_path: list[int], number_of_slots: int, uplinks_spectrums: list[np.ndarray] = None):
+    def __init__(self, node_path: list[int], route_index: int, uplink_path: list[int], downlink_path: list[int], number_of_slots: int, uplinks_spectrums: list[np.ndarray] = None, cost=-1):
         """ Construtor da classe Route. A rota é definida por uma lista de nós e seus respectivos enlaces de uplink e downlink.
 
             Parâmetros:
@@ -27,6 +27,13 @@ class Route:
         self._number_of_slots = number_of_slots
 
         self.uplink_spectrums = uplinks_spectrums
+
+        self.cost = cost
+        self._route_index = -1
+
+    def set_route_index(self, k_value):
+        self._route_index = k_value
+
 
     def get_uplinks(self):
         return self.uplink_spectrums
@@ -60,7 +67,7 @@ class Route:
                 link_spectrum[slot] = False 
 
     def __str__(self) -> str:
-        return f"Route {self._route_index}: {self._path_node}"
+        return f"Route {self._route_index}[src = {self._path_node[0]}, dst = {self._path_node[-1]}, path = {self._path_node}, kFindIndex = {self._route_index}, conflictSize = {len(self.iRoutes)}]\n"
     
     def __repr__(self) -> str:
         return f"Route {self._route_index}: {self._path_node}"

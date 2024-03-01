@@ -1,17 +1,13 @@
-
-
-
-import numpy as np
 import os
+import numpy as np
 import gymnasium as gym
 
 import Enviroment.utils as utils
 from Enviroment.Settings import *
 
 from Topology.NSFNet import NSFNet
-from Topology.iTwo import iTwo
-from Enviroment.route import Route
 from Enviroment.demand import Demand
+
 import SpectrumAssignment.RSA_FirstFit as RSA_FirstFit
 import SpectrumAssignment.SAR_FirstFit as SAR_FistFit
 import SpectrumAssignment.MSCL_combinado as MSCL_combinado
@@ -48,7 +44,17 @@ class Enviroment(gym.Env):
         self._network_load = network_load
         self._k_routes = k_routes
 
-        self._data_folder = data_folder
+        # Se o diretório de dados não for fornecido, não cria o diretório
+        if data_folder is not None:
+            
+            folders_name = os.listdir(f'D:\\98_phD_Files\\Simulator-RSA-SAR-RL-GA\\logs')
+            qtd = len([name for name in folders_name if data_folder in name]) + 1
+
+            self.folder_name = f'logs\\{data_folder}_{str(qtd).zfill(3)}'
+
+            os.makedirs(self.folder_name, exist_ok=True)
+        else:
+            self.folder_name = None
 
         if enviroment_type is None:
             self._enviroment_type = {
@@ -65,12 +71,29 @@ class Enviroment(gym.Env):
         self._network = NSFNet(num_of_slots = number_of_slots)
         self._number_of_nodes = self._network.get_num_of_nodes()
 
-        # Cria o caminho de nós de todas as rotas possíveis
-        self._allRoutes_paths = [[self._network.k_shortest_paths(origin, source, k_routes) for source in range(self._network.get_num_of_nodes())] for origin in range(self._network.get_num_of_nodes())]
+        # Algoritmo de Roteamento YEN. Cria a lista fixa para todas as rotas possíveis
+        self.allRoutes = []
+        for source in range(self._number_of_nodes):
+            for destination in range(self._number_of_nodes):
+                if source != destination:
+                    routes = self._network.YEN_on_hand(source, destination, k_routes)
+                    self.allRoutes.append(routes)
+                else:
+                    routes = None
+                    self.allRoutes.append(routes)
 
-        # Cria a lista de rotas possíveis em rotas
-        self.allRoutes = self.generate_routes(self._allRoutes_paths)
         self.update_iRoutes(self.allRoutes)
+
+        if self.folder_name is not None:
+            # Salva as rotas geradas em um arquivo .txt
+            with open(f'{self.folder_name}/routes.txt', 'w') as file:
+                for i, routes_by_OD in enumerate(self.allRoutes):
+                    if routes_by_OD is None:
+                        continue
+                    for route in routes_by_OD:
+                        if route is None:
+                            continue
+                        file.write(str(route))
 
         # Estabelece os tipos de demandas de slots possíveis para a requisição
         self._demands_class = DEMANDS_CLASS
@@ -117,13 +140,6 @@ class Enviroment(gym.Env):
             # Define o espaço de observação para a entrada do algoritmo. O espaço 'OD-one-hot' é um espaço de observação que representa o par de origem, destino e demanda em one-hot encoding. No final deve ser adicionado a quantidade de ações tomadas pelo algoritmo para o par OD, normalizado pelo total de chamadas.
             self.observation_space = gym.spaces.Box(low=0, high=1, shape=(self._number_of_nodes * 2 + len(self._demands_class) + 2,), dtype=np.float32, seed=42)
         elif self._enviroment_type["Observation"] == "availability-vector":
-            # self.observation_space = gym.spaces.Box(
-            #     low=0, high=1, 
-            #     shape=(self._number_of_nodes * 2 + 
-            #            len(self._demands_class) + 
-            #            self._k_routes * self._number_of_slots
-            #     ,), 
-            #     dtype=np.uint8, seed=42)
             self.observation_space = gym.spaces.MultiBinary(
                 self._number_of_nodes * 2 + 
                 len(self._demands_class) + 
@@ -131,13 +147,6 @@ class Enviroment(gym.Env):
             )
         elif self._enviroment_type["Observation"] == "all-network":
             number_of_links = self._network.get_num_of_links()
-            # self.observation_space = gym.spaces.Box(
-            #     low=0, high=1,
-            #     shape=(self._number_of_nodes * 2 + 
-            #            len(self._demands_class) + 
-            #            number_of_links * self._number_of_slots
-            #     ,),
-            #     dtype=np.uint8, seed=42)
             self.observation_space = gym.spaces.MultiBinary(self._number_of_nodes * 2 + len(self._demands_class) + number_of_links * self._number_of_slots)
         elif self._enviroment_type["Observation"] == "ODD-nForms":
             # Par origem e destino, demanda e o número formas possíveis de alocar uma demanda de também 'n' nas 'K' rotas
@@ -145,80 +154,9 @@ class Enviroment(gym.Env):
             
         else:
             raise ValueError("Tipo de observação inválido. Escolha entre 'OD', 'ODD-one-hot', 'availability-vector' ou 'all-network'.")
-        
-        self.collect_data(True)
 
         self.matrix_OD_RSA = np.zeros((self._number_of_nodes, self._number_of_nodes))
         self.matrix_OD_SAR = np.zeros((self._number_of_nodes, self._number_of_nodes))
-
-    def route_by_path(self, path, id_route):
-
-        # Retorna o índice dos links que compõem o uplink da rota
-        uplinks = [self._network.spectrum_map[path[i], path[i + 1]] for i in range(len(path) - 1)]
-        downlinks = []
-
-        uplinks_spectrum = []
-        for link_id in uplinks:
-            uplinks_spectrum.append(self._network.all_optical_links[link_id])
-
-        route = Route(node_path = path, route_index = id_route, uplink_path=uplinks, downlink_path=downlinks, number_of_slots=self._number_of_slots, uplinks_spectrums=uplinks_spectrum)
-
-        return route
-
-
-    def generate_routes(self, allRoutes_paths):
-        """ Gera uma lista de classe Route para todas as rotas possíveis.
-
-            Parâmetros:
-                allRoutes_paths: Lista de caminhos dos nós para todas as rotas possíveis.
-
-            Retorna:
-                Uma lista de classe Route para todas as rotas possíveis.
-        """
-
-        routes = []
-        route_id = 0
-
-        links_mapping = self._network.spectrum_map
-
-        for source, routes_for_source_path in enumerate(allRoutes_paths):
-
-            for destination, routes_for_destination_path in enumerate(routes_for_source_path):
-
-                #print(f'Source: {str(source).zfill(2)} Destination: {str(destination).zfill(2)} | ', end='\n')
-
-                if source == destination:
-                    routes.append(None)
-                    continue
-                
-                routes_by_OD = []
-                for node_path in routes_for_destination_path:
-
-                    # Retorna o índice dos links que compõem o uplink da rota
-                    uplinks = [links_mapping[node_path[i], node_path[i + 1]] for i in range(len(node_path) - 1)]
-
-                    if IS_BIDIRECTIONAL:
-
-                        node_path_reversed = node_path[::-1]
-
-                        downlinks = [links_mapping[node_path_reversed[i], node_path_reversed[i + 1]] for i in range(len(node_path_reversed) - 1)]
-                    else:
-                        downlinks = []
-
-                    uplinks_spectrum = []
-                    for link_id in uplinks:
-                        uplinks_spectrum.append(self._network.all_optical_links[link_id])
-
-                    route = Route(node_path = node_path, route_index = route_id, uplink_path=uplinks, downlink_path=downlinks, number_of_slots=self._number_of_slots, uplinks_spectrums=uplinks_spectrum)
-                                  
-                    routes_by_OD.append(route)
-                    route_id += 1
-                
-                routes.append(routes_by_OD)
-
-
-        return routes
-
 
     def update_iRoutes(self, allRoutes):
         """ Atualiza a lista de rotas interferentes para cada rota.
@@ -321,11 +259,7 @@ class Enviroment(gym.Env):
                 Uma tupla (source, destination).
 
         """
-        if type(self._network) == iTwo:
-            source = self._random_generator.integers(0, 4)
-        else:
-            source = self._random_generator.integers(0, self._number_of_nodes)
-
+        source = self._random_generator.integers(0, self._number_of_nodes)
         destination = self._random_generator.integers(0, self._number_of_nodes)
         while source == destination:
             destination = self._random_generator.integers(0, self._number_of_nodes)
@@ -562,10 +496,10 @@ class Enviroment(gym.Env):
 
         # Cria uma pasta para armazenar os dados do ambiente dentro da pasta 'logs'. A pasta deve ser criada com um nome único para cada execução do ambiente, exemplo: 'logs/{folder_name}_{qtd}'. Sendo qtd a quantidade de pasta com o mesmo nome.
         if create_folder:
-            folders_name = os.listdir(f'D:\\98_phD_Files\\Projeto 006 - Artigo rede regular iTwo\\logs\\')
+            folders_name = os.listdir(f'logs\\')
             qtd = len([name for name in folders_name if self._data_folder in name]) + 1
 
-            self.folder_name = f'D:\\98_phD_Files\\Projeto 006 - Artigo rede regular iTwo\\logs\\{self._data_folder}_{str(qtd).zfill(3)}'
+            self.folder_name = f'logs\\{self._data_folder}_{str(qtd).zfill(3)}'
 
             os.makedirs(self.folder_name, exist_ok=True)
 

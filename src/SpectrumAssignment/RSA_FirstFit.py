@@ -24,7 +24,7 @@ def find_slots(routes: list, demands: int) -> np.array:
         for link in range(1, len(uplinks)):
             availability_vector_uplink = np.logical_or(availability_vector_uplink, uplinks[link])
 
-        for slot in range(NUMBER_OF_SLOTS - demands):
+        for slot in range(NUMBER_OF_SLOTS - demands + 1):
             is_available = True
             for j in range(demands):
                 if availability_vector_uplink[slot + j]:
